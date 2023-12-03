@@ -1,7 +1,23 @@
-import Versions from './components/Versions'
+import { PuppeteerResult } from '../../types/globals'
 import icons from './assets/icons.svg'
+import Versions from './components/Versions'
 
 function App(): JSX.Element {
+  const handleOnPuppeteer = async (): Promise<void> => {
+    const path: string = await window.electron.ipcRenderer.invoke('get-file-path')
+    console.log(path)
+    // check cancelled
+    if (path) {
+      const result: PuppeteerResult = await window.electron.ipcRenderer.invoke(
+        'start-x-scheduling',
+        path
+      )
+      console.log(result.result)
+    } else {
+      console.log('cancelled')
+    }
+  }
+
   return (
     <div className="container">
       <Versions></Versions>
@@ -48,6 +64,7 @@ function App(): JSX.Element {
         <div className="feature-item">
           <article>
             <h2 className="title">Configuring</h2>
+            <button onClick={handleOnPuppeteer}>Click Me</button>
             <p className="detail">
               Config with <span>electron.vite.config.ts</span> and refer to the{' '}
               <a target="_blank" href="https://electron-vite.org/config" rel="noopener noreferrer">

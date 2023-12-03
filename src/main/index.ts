@@ -1,7 +1,31 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { electronApp, ipcHelper, is, optimizer } from '@electron-toolkit/utils'
+import { BrowserWindow, app, dialog, shell } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import puppeteer from 'puppeteer'
 import icon from '../../resources/icon.png?asset'
+import { PuppeteerResult } from '../types/globals'
+
+// ipcMain
+const getFilePath = async (): Promise<string> => {
+  const { filePaths } = await dialog.showOpenDialog({
+    properties: ['openFile'],
+    title: '投稿ファイルを選択',
+    filters: [{ name: 'スケジュールファイル', extensions: ['csv'] }]
+  })
+  return filePaths[0]
+}
+
+const startXScheduling = async (filePath: string): Promise<PuppeteerResult> => {
+  console.log(filePath)
+
+  const browser = await puppeteer.launch({ headless: false })
+  const page = await browser.newPage()
+  await page.goto('https://twitter.com')
+
+  // Rest of your code...
+
+  return { result: 'success', message: 'great' }
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -49,6 +73,9 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
+  // ipcMain
+  ipcHelper.handle('get-file-path', getFilePath)
+  ipcHelper.handle('start-x-scheduling', (_event, filePath) => startXScheduling(filePath))
   createWindow()
 
   app.on('activate', function () {
