@@ -5,6 +5,9 @@ import puppeteer from 'puppeteer'
 import icon from '../../resources/icon.png?asset'
 import { PuppeteerResult } from '../types/globals'
 
+process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true'
+
+let splashWindow: BrowserWindow | null = null
 // ipcMain
 const getFilePath = async (): Promise<string> => {
   const { filePaths } = await dialog.showOpenDialog({
@@ -59,6 +62,39 @@ function createWindow(): void {
   }
 }
 
+function createSplashWindow(): void {
+  // Create the browser window.
+  splashWindow = new BrowserWindow({
+    frame: false,
+    width: 768,
+    height: 768,
+    show: false,
+    autoHideMenuBar: true,
+    ...(process.platform === 'linux' ? { icon } : {}),
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false
+    }
+  })
+
+  splashWindow.on('ready-to-show', () => {
+    if (splashWindow) splashWindow.show()
+  })
+
+  splashWindow.webContents.setWindowOpenHandler((details) => {
+    shell.openExternal(details.url)
+    return { action: 'deny' }
+  })
+
+  // HMR for renderer base on electron-vite cli.
+  // Load the remote URL for development or the local html file for production.
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    splashWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
+  } else {
+    splashWindow.loadFile(join(__dirname, '../renderer/splash.html'))
+  }
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -76,7 +112,12 @@ app.whenReady().then(() => {
   // ipcMain
   ipcHelper.handle('get-file-path', getFilePath)
   ipcHelper.handle('start-x-scheduling', (_event, filePath) => startXScheduling(filePath))
-  createWindow()
+  createSplashWindow()
+  setTimeout(() => {
+    splashWindow?.hide()
+    createWindow()
+    splashWindow?.close()
+  }, 3000)
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the
